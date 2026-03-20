@@ -6,9 +6,9 @@ from aiogram.enums import ParseMode
 
 from config import config
 from handlers.commands import router as commands_router
-# from handlers.chat import router as chat_router
-# from handlers.voice import router as voice_router
-# from handlers.document import router as document_router
+from handlers.chat import router as chat_router
+from handlers.voice import router as voice_router
+from handlers.document import router as document_router
 
 logger = structlog.get_logger(__name__)
 
@@ -22,9 +22,9 @@ async def main():
     dp = Dispatcher()
     
     dp.include_router(commands_router)
-    # dp.include_router(chat_router)
-    # dp.include_router(voice_router)
-    # dp.include_router(document_router)
+    dp.include_router(chat_router)
+    dp.include_router(voice_router)
+    dp.include_router(document_router)
     
     # Drop pending updates and start polling
     await bot.delete_webhook(drop_pending_updates=True)
