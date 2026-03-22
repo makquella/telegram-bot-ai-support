@@ -175,8 +175,6 @@ All settings via environment variables or `.env` file:
 
 See [.env.example](.env.example) for the full list.
 
-Portfolio-ready project summary for Freelancehunt is available in [FREELANCEHUNT_CASE.md](FREELANCEHUNT_CASE.md).
-
 ---
 
 ## 🛠 Tech Stack
