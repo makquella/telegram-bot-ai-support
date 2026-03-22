@@ -1,29 +1,74 @@
+"""Redis-backed conversation memory with TTL auto-cleanup."""
+
 import json
+import structlog
 import redis.asyncio as aioredis
+
 from config import config
 
+logger = structlog.get_logger(__name__)
+
+
 class ConversationMemory:
-    def __init__(self):
+    """Stores per-user conversation history in Redis.
+
+    Messages are stored as JSON-encoded lists with a configurable TTL
+    and maximum history length.
+    """
+
+    def __init__(self) -> None:
         self.redis = aioredis.from_url(config.redis_url, decode_responses=True)
-        self.max_history = 15
+        self.max_history = config.max_history
+        self.ttl = config.memory_ttl
 
-    def _get_key(self, user_id: int) -> str:
-        return f"memory:user:{user_id}"
+    def _key(self, user_id: int) -> str:
+        return f"smartflow:memory:{user_id}"
 
-    async def add_message(self, user_id: int, role: str, content: str):
-        key = self._get_key(user_id)
+    async def add_message(self, user_id: int, role: str, content: str) -> None:
+        """Append a message to the user's conversation history.
+
+        Args:
+            user_id: Telegram user ID.
+            role: Message role — "user" or "assistant".
+            content: Message text.
+        """
+        key = self._key(user_id)
         message = json.dumps({"role": role, "content": content})
-        await self.redis.rpush(key, message)
-        # Keep last N messages. Since 1 exchange = 2 messages, let's keep max_history * 2
-        await self.redis.ltrim(key, -self.max_history * 2, -1)
+        try:
+            await self.redis.rpush(key, message)
+            await self.redis.ltrim(key, -(self.max_history * 2), -1)
+            await self.redis.expire(key, self.ttl)
+        except Exception as e:
+            logger.error("Memory write failed", error=str(e), user_id=user_id)
 
-    async def get_messages(self, user_id: int) -> list:
-        key = self._get_key(user_id)
-        messages_json = await self.redis.lrange(key, 0, -1)
-        return [json.loads(msg) for msg in messages_json]
+    async def get_messages(self, user_id: int) -> list[dict[str, str]]:
+        """Retrieve the user's conversation history.
 
-    async def clear_memory(self, user_id: int):
-        key = self._get_key(user_id)
-        await self.redis.delete(key)
+        Args:
+            user_id: Telegram user ID.
+
+        Returns:
+            List of message dicts with "role" and "content" keys.
+        """
+        key = self._key(user_id)
+        try:
+            raw = await self.redis.lrange(key, 0, -1)
+            return [json.loads(msg) for msg in raw]
+        except Exception as e:
+            logger.error("Memory read failed", error=str(e), user_id=user_id)
+            return []
+
+    async def clear_memory(self, user_id: int) -> None:
+        """Delete the user's conversation history.
+
+        Args:
+            user_id: Telegram user ID.
+        """
+        key = self._key(user_id)
+        try:
+            await self.redis.delete(key)
+        except Exception as e:
+            logger.error("Memory clear failed", error=str(e), user_id=user_id)
+
 
 memory = ConversationMemory()

@@ -1,31 +1,56 @@
+"""Document loader and text splitter for RAG pipeline."""
+
 import os
-import aiofiles
-from langchain_community.document_loaders import PyPDFLoader, TextLoader, Docx2txtLoader
+import asyncio
 import structlog
+from langchain_community.document_loaders import PyPDFLoader, TextLoader, Docx2txtLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+from config import config
 
 logger = structlog.get_logger(__name__)
 
-async def process_document(file_path: str, filename: str) -> list:
-    """Load a document and return its content as chunks/documents."""
-    ext = os.path.splitext(filename)[1].lower()
-    
-    try:
-        # Langchain loaders are synchronous, we run them in an executor.
-        import asyncio
-        loop = asyncio.get_running_loop()
-        
-        def load():
-            if ext == '.pdf':
-                return PyPDFLoader(file_path).load_and_split()
-            elif ext == '.txt':
-                return TextLoader(file_path).load_and_split()
-            elif ext == '.docx':
-                return Docx2txtLoader(file_path).load_and_split()
-            else:
-                raise ValueError("Unsupported format")
+# Supported file extensions
+SUPPORTED_EXTENSIONS = {".txt", ".pdf", ".docx"}
 
-        docs = await loop.run_in_executor(None, load)
-        return docs
+_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=config.rag_chunk_size,
+    chunk_overlap=config.rag_chunk_overlap,
+    length_function=len,
+)
+
+_LOADERS = {
+    ".pdf": PyPDFLoader,
+    ".txt": TextLoader,
+    ".docx": Docx2txtLoader,
+}
+
+
+async def process_document(file_path: str, filename: str) -> list:
+    """Load a document and split it into chunks for indexing.
+
+    Args:
+        file_path: Path to the downloaded file on disk.
+        filename: Original filename (used to detect extension).
+
+    Returns:
+        List of LangChain Document chunks, or empty list on failure.
+    """
+    ext = os.path.splitext(filename)[1].lower()
+
+    if ext not in _LOADERS:
+        logger.warning("Unsupported file format", extension=ext)
+        return []
+
+    loop = asyncio.get_running_loop()
+
+    def _load_and_split():
+        loader_cls = _LOADERS[ext]
+        documents = loader_cls(file_path).load()
+        return _splitter.split_documents(documents)
+
+    try:
+        return await loop.run_in_executor(None, _load_and_split)
     except Exception as e:
-        logger.error("Document Loading Error", error=str(e))
+        logger.error("Document loading failed", error=str(e), filename=filename)
         return []

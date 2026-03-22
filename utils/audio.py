@@ -1,56 +1,105 @@
+"""Audio processing: STT (faster-whisper) and TTS (edge-tts)."""
+
 import os
 import asyncio
 import structlog
-from faster_whisper import WhisperModel
-import edge_tts
 from pydub import AudioSegment
+
+from config import config
 
 logger = structlog.get_logger(__name__)
 
-# Initialize whisper model once.
-try:
-    whisper_model = WhisperModel("tiny", device="cpu", compute_type="int8")
-except Exception as e:
-    logger.error("Failed to load whisper model", error=str(e))
-    whisper_model = None
+# Lazy-loaded whisper model (downloaded on first use)
+_whisper_model = None
+
+
+def _get_whisper_model():
+    """Lazy-load the Whisper model to avoid slow startup."""
+    global _whisper_model
+    if _whisper_model is None:
+        from faster_whisper import WhisperModel
+
+        logger.info(
+            "Loading Whisper model",
+            model=config.whisper_model,
+            device=config.whisper_device,
+        )
+        _whisper_model = WhisperModel(
+            config.whisper_model,
+            device=config.whisper_device,
+            compute_type=config.whisper_compute,
+        )
+    return _whisper_model
+
 
 async def transcribe_audio(audio_path: str) -> str:
-    """Transcribe audio file using faster-whisper."""
-    if not whisper_model:
-        return "Sorry, speech-to-text is currently unavailable."
-    
+    """Transcribe an audio file to text using faster-whisper.
+
+    Args:
+        audio_path: Path to the WAV audio file.
+
+    Returns:
+        Transcribed text or empty string on failure.
+    """
     try:
+        model = _get_whisper_model()
         loop = asyncio.get_running_loop()
-        def transcribe():
-            segments, info = whisper_model.transcribe(audio_path, beam_size=5)
-            text = " ".join([segment.text for segment in segments])
-            return text
-        
-        text = await loop.run_in_executor(None, transcribe)
+
+        def _transcribe():
+            segments, info = model.transcribe(
+                audio_path,
+                beam_size=5,
+                language="ru",
+            )
+            return " ".join(seg.text for seg in segments)
+
+        text = await loop.run_in_executor(None, _transcribe)
         return text.strip()
     except Exception as e:
-        logger.error("Transcription Error", error=str(e))
+        logger.error("Transcription failed", error=str(e))
         return ""
 
+
 async def generate_speech(text: str, output_path: str) -> bool:
-    """Generate speech using async edge-tts."""
+    """Generate speech audio from text using Edge-TTS.
+
+    Args:
+        text: Text to synthesize.
+        output_path: Path to save the generated audio file.
+
+    Returns:
+        True on success, False on failure.
+    """
     try:
-        communicate = edge_tts.Communicate(text, "en-US-AriaNeural")
+        import edge_tts
+
+        communicate = edge_tts.Communicate(text, config.tts_voice)
         await communicate.save(output_path)
         return True
     except Exception as e:
-        logger.error("TTS Error", error=str(e))
+        logger.error("TTS generation failed", error=str(e))
         return False
 
+
 async def convert_ogg_to_wav(input_path: str, output_path: str) -> bool:
-    """Convert Telegram OGG voice to WAV for Whisper using pydub."""
+    """Convert Telegram OGG voice message to WAV for Whisper.
+
+    Args:
+        input_path: Path to the OGG file.
+        output_path: Path to save the WAV file.
+
+    Returns:
+        True on success, False on failure.
+    """
     try:
         loop = asyncio.get_running_loop()
-        def convert():
+
+        def _convert():
             audio = AudioSegment.from_ogg(input_path)
             audio.export(output_path, format="wav")
-        await loop.run_in_executor(None, convert)
+
+        await loop.run_in_executor(None, _convert)
         return True
     except Exception as e:
-        logger.error("Audio Conversion Error", error=str(e))
+        logger.error("Audio conversion failed", error=str(e))
         return False

@@ -1,31 +1,48 @@
-from rag.embedder import get_embeddings
-from langchain_community.vectorstores import Qdrant
-from config import config
+"""RAG retrieval chain — searches indexed documents for relevant context."""
+
+import asyncio
 import structlog
+from langchain_qdrant import QdrantVectorStore
+from qdrant_client import QdrantClient
+
+from config import config
+from rag.embedder import get_embeddings
 
 logger = structlog.get_logger(__name__)
 
-async def retrieve_context(query: str, top_k: int = 3) -> str:
-    """Retrieve relevant context for a given query."""
-    try:
-        import qdrant_client
-        import asyncio
-        loop = asyncio.get_running_loop()
-        
-        def search():
-            sync_client = qdrant_client.QdrantClient(url=config.qdrant_url)
-            store = Qdrant(
-                client=sync_client,
-                collection_name="smartflow_docs",
-                embeddings=get_embeddings()
-            )
-            return store.similarity_search(query, k=top_k)
 
-        docs = await loop.run_in_executor(None, search)
-        
-        if docs:
-            return "\n\n".join([doc.page_content for doc in docs])
-        return ""
+async def retrieve_context(query: str, top_k: int | None = None) -> str:
+    """Retrieve relevant document context for a user query.
+
+    Args:
+        query: The user's question or message.
+        top_k: Number of results to return (defaults to config.rag_top_k).
+
+    Returns:
+        Concatenated text from the most relevant document chunks,
+        or an empty string if no documents are indexed.
+    """
+    if top_k is None:
+        top_k = config.rag_top_k
+
+    loop = asyncio.get_running_loop()
+
+    def _search() -> str:
+        client = QdrantClient(url=config.qdrant_url)
+        existing = [c.name for c in client.get_collections().collections]
+        if config.rag_collection not in existing:
+            return ""
+
+        store = QdrantVectorStore(
+            client=client,
+            collection_name=config.rag_collection,
+            embedding=get_embeddings(),
+        )
+        docs = store.similarity_search(query, k=top_k)
+        return "\n\n".join(doc.page_content for doc in docs) if docs else ""
+
+    try:
+        return await loop.run_in_executor(None, _search)
     except Exception as e:
-        logger.error("Context Retrieval Error", error=str(e))
+        logger.error("Context retrieval failed", error=str(e))
         return ""

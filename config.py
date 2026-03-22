@@ -1,21 +1,61 @@
+"""Application configuration via environment variables and .env file."""
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import SecretStr
+from pydantic import SecretStr, Field
 from typing import Optional
 
+
 class Settings(BaseSettings):
-    bot_token: SecretStr
-    openai_api_key: Optional[SecretStr] = None
-    groq_api_key: Optional[SecretStr] = None
-    gemini_api_key: Optional[SecretStr] = None
-    
-    redis_url: str = "redis://localhost:6379/0"
-    qdrant_url: str = "http://localhost:6333"
-    
-    use_webhook: bool = False
-    webhook_url: Optional[str] = None
-    webhook_path: str = "/webhook"
-    port: int = 8000
-    
+    """SmartFlow AI Bot configuration.
+
+    All settings can be overridden via environment variables or a `.env` file.
+    """
+
+    # --- Telegram ---
+    bot_token: SecretStr = Field(..., description="Telegram Bot API token from @BotFather")
+
+    # --- LLM ---
+    gemini_api_key: Optional[SecretStr] = Field(None, description="Google Gemini API key")
+    openai_api_key: Optional[SecretStr] = Field(None, description="OpenAI API key (optional)")
+    groq_api_key: Optional[SecretStr] = Field(None, description="Groq API key (optional)")
+    llm_model: str = Field("gemini/gemini-3-flash-preview", description="LiteLLM model identifier")
+    system_prompt: str = Field(
+        "You are SmartFlow AI, a helpful and friendly Telegram assistant. "
+        "Respond naturally and conversationally, like a knowledgeable friend. "
+        "IMPORTANT: Do NOT use any markdown formatting — no asterisks, no bold, "
+        "no headers, no bullet points with special symbols, no backticks. "
+        "Write in plain text only. Use simple numbered lists or dashes if needed. "
+        "Be concise and to the point.",
+        description="System prompt for the LLM",
+    )
+
+    # --- Embeddings & RAG ---
+    embedding_model: str = Field("models/gemini-embedding-2-preview", description="Embedding model name")
+    rag_collection: str = Field("smartflow_docs", description="Qdrant collection name")
+    rag_vector_size: int = Field(3072, description="Embedding vector dimension")
+    rag_chunk_size: int = Field(1000, description="Text splitter chunk size")
+    rag_chunk_overlap: int = Field(200, description="Text splitter chunk overlap")
+    rag_top_k: int = Field(3, description="Number of documents to retrieve")
+
+    # --- Voice ---
+    whisper_model: str = Field("medium", description="Whisper model size: tiny/small/medium/large")
+    whisper_device: str = Field("cpu", description="Whisper device: cpu/cuda")
+    whisper_compute: str = Field("int8", description="Whisper compute type: int8/float16/float32")
+    tts_voice: str = Field("ru-RU-SvetlanaNeural", description="Edge-TTS voice identifier")
+
+    # --- Infrastructure ---
+    redis_url: str = Field("redis://localhost:6379/0", description="Redis connection URL")
+    qdrant_url: str = Field("http://localhost:6333", description="Qdrant connection URL")
+    memory_ttl: int = Field(86400, description="Conversation memory TTL in seconds (24h)")
+    max_history: int = Field(15, description="Max conversation exchanges to keep")
+
+    # --- Webhook ---
+    use_webhook: bool = Field(False, description="Use webhook mode instead of polling")
+    webhook_url: Optional[str] = Field(None, description="Public webhook URL")
+    webhook_path: str = Field("/webhook", description="Webhook endpoint path")
+    port: int = Field(8000, description="Server port for webhook mode")
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+
 
 config = Settings()

@@ -1,7 +1,33 @@
+# Python
 venv/
 __pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Environment
 .env
+.env.local
+
+# Data & Temp files
 data/
 *.db
+*.wav
+*.ogg
+*.mp3
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Logs
+bot.log
+*.log
+
+# Testing
 .pytest_cache/
-*.pyc
+htmlcov/
+.coverage
