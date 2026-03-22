@@ -16,9 +16,10 @@ A deployable **AI-powered Telegram assistant** with conversational memory, docum
 |---------|-------------|
 | 💬 **Smart Chat** | Context-aware conversations powered by Gemini / OpenAI / Groq via LiteLLM |
 | 📄 **Document Q&A** | Upload PDF / DOCX / TXT → auto-indexed in Qdrant → ask questions about content |
-| 🔐 **User-Isolated RAG** | Document search is scoped per Telegram user, so uploaded files stay separated by chat |
-| 🎙 **Voice Mode** | Send a voice message → STT (Whisper) → LLM → TTS (Edge-TTS) → voice reply |
+| 🔐 **Scoped RAG Isolation** | Retrieval is scoped by `user_id + chat_id`, with `source_id` metadata stored per uploaded document |
+| 🎙 **Voice Mode** | Send a voice message → STT → optional RAG over indexed docs → LLM → TTS (Edge-TTS) |
 | 🧠 **Memory** | Redis-backed conversation history with configurable TTL and max exchanges |
+| 🧱 **Document Limits** | File size, MIME type, chunk count, and per-chat document caps protect the bot from abuse |
 | 🩺 **Health Checks** | Startup dependency checks plus `/health` endpoint for webhook deployments |
 | ✅ **CI** | GitHub Actions runs unit tests on every push and pull request |
 | ⚡ **Dual Mode** | Long-polling for development, FastAPI webhooks for production |
@@ -45,6 +46,7 @@ graph LR
     CHT -->|history| RD[(Redis)]
 
     VOI -->|transcribe| STT[Whisper]
+    VOI -->|retrieve context| QD
     VOI -->|synthesize| TTS[Edge-TTS]
     VOI --> LLM
 ```
@@ -62,7 +64,7 @@ smartflow-ai-bot/
 ├── handlers/
 │   ├── commands.py      # /start, /help, /clear, /clear_docs, /status
 │   ├── chat.py          # Text message handler with RAG
-│   ├── voice.py         # Voice message pipeline (STT → LLM → TTS)
+│   ├── voice.py         # Voice message pipeline (STT → RAG → LLM → TTS)
 │   └── document.py      # File upload and indexing
 ├── utils/
 │   ├── llm.py           # LiteLLM integration
@@ -76,9 +78,13 @@ smartflow-ai-bot/
 ├── memory/
 │   └── conversation.py  # Redis conversation memory
 ├── services/
+│   ├── conversation.py  # Shared RAG-aware message preparation
+│   ├── documents.py     # Upload validation and document limits
 │   └── health.py        # Redis/Qdrant dependency checks
 ├── tests/
+│   ├── test_conversation.py # Unit tests for shared conversation pipeline
 │   ├── test_config.py   # Unit tests for config validation
+│   ├── test_documents.py # Unit tests for document validation policy
 │   └── test_scoping.py  # Unit tests for user-scoped RAG helpers
 ├── Dockerfile
 ├── docker-compose.yml
@@ -123,25 +129,46 @@ docker run -d --name redis -p 6379:6379 redis:7-alpine
 docker run -d --name qdrant -p 6333:6333 qdrant/qdrant:latest
 ```
 
-### 4. Run
+### 4. Run In Polling Mode
 
 ```bash
+export USE_WEBHOOK=false
 python main.py
+```
+
+### 5. Run In Webhook Mode
+
+```bash
+export USE_WEBHOOK=true
+export WEBHOOK_URL=https://your-domain.com
+uvicorn app:app --host 0.0.0.0 --port 8000
 ```
 
 ---
 
 ## 🐳 Docker Deployment
 
-Full-stack deployment with a single command:
+Infrastructure only:
 
 ```bash
 cp .env.example .env
 # Edit .env with your tokens
-docker compose up -d
+docker compose up -d redis qdrant
 ```
 
-This starts the bot, Redis, and Qdrant with persistent storage.
+Polling mode:
+
+```bash
+docker compose --profile polling up -d
+```
+
+Webhook mode:
+
+```bash
+docker compose --profile webhook up -d
+```
+
+For webhook mode, make sure `USE_WEBHOOK=true` and `WEBHOOK_URL` are set in `.env`.
 
 ---
 
@@ -169,6 +196,10 @@ All settings via environment variables or `.env` file:
 | `EMBEDDING_MODEL` | `models/gemini-embedding-2-preview` | Embedding model |
 | `WHISPER_MODEL` | `medium` | Whisper size: tiny/small/medium/large |
 | `TTS_VOICE` | `ru-RU-SvetlanaNeural` | Edge-TTS voice |
+| `VOICE_USE_RAG` | `true` | Whether transcribed voice messages should use document retrieval |
+| `MAX_DOCUMENT_SIZE_MB` | `20` | Maximum uploaded document size |
+| `MAX_CHUNKS_PER_DOCUMENT` | `100` | Maximum chunks created from a single document |
+| `MAX_DOCUMENTS_PER_CHAT` | `20` | Maximum indexed documents per user in one chat |
 | `MAX_HISTORY` | `15` | Conversation exchanges to remember |
 | `MEMORY_TTL` | `86400` | Memory auto-expiry (seconds) |
 | `DATA_DIR` | `data` | Directory for temp audio/doc processing |

@@ -11,6 +11,9 @@ logger = structlog.get_logger(__name__)
 
 async def main() -> None:
     """Start the bot in long-polling mode."""
+    if config.use_webhook:
+        raise RuntimeError("main.py supports only polling mode. Set USE_WEBHOOK=false.")
+
     logger.info("Starting bot in polling mode...", model=config.llm_model)
 
     await bot.delete_webhook(drop_pending_updates=True)
@@ -23,5 +26,4 @@ async def main() -> None:
 
 if __name__ == "__main__":
     configure_logging()
-    if not config.use_webhook:
-        asyncio.run(main())
+    asyncio.run(main())

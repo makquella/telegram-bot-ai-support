@@ -15,17 +15,18 @@ logger = structlog.get_logger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Set up and tear down webhook on startup/shutdown."""
+    if not config.use_webhook:
+        raise RuntimeError("app.py supports only webhook mode. Set USE_WEBHOOK=true.")
+
     await initialize_bot(bot)
-    if config.use_webhook and config.webhook_url:
-        webhook_info = await bot.get_webhook_info()
-        full_url = config.webhook_url + config.webhook_path
-        if webhook_info.url != full_url:
-            logger.info("Setting webhook", url=full_url)
-            await bot.set_webhook(url=full_url)
+    webhook_info = await bot.get_webhook_info()
+    full_url = config.webhook_url + config.webhook_path
+    if webhook_info.url != full_url:
+        logger.info("Setting webhook", url=full_url)
+        await bot.set_webhook(url=full_url)
     yield
-    if config.use_webhook:
-        logger.info("Deleting webhook")
-        await bot.delete_webhook()
+    logger.info("Deleting webhook")
+    await bot.delete_webhook()
     await shutdown_bot(bot)
 
 
@@ -54,7 +55,7 @@ async def health_check(response: Response):
     return {
         "status": "ok" if health.ok else "degraded",
         "service": "SmartFlow AI Bot",
-        "mode": "webhook" if config.use_webhook else "polling",
+        "mode": "webhook",
         "checks": health.to_dict(),
     }
 

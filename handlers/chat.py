@@ -4,8 +4,8 @@ import structlog
 from aiogram import Router, types
 
 from memory.conversation import memory
+from services.conversation import build_inference_messages, build_user_message_content
 from utils.llm import generate_response
-from rag.chain import retrieve_context
 
 logger = structlog.get_logger(__name__)
 router = Router(name="chat")
@@ -22,27 +22,19 @@ async def handle_text_message(message: types.Message) -> None:
         return
 
     user_id = message.from_user.id
+    chat_id = message.chat.id
     await message.bot.send_chat_action(chat_id=message.chat.id, action="typing")
 
-    # Retrieve RAG context (silent on failure)
-    context = ""
-    try:
-        context = await retrieve_context(message.text, user_id=user_id)
-    except Exception:
-        pass
-
-    # Build user content with optional context
-    user_content = message.text
-    if context:
-        user_content = (
-            f"Контекст из документов:\n{context}\n\n"
-            f"Вопрос пользователя: {message.text}"
-        )
-
-    await memory.add_message(user_id, "user", user_content)
-    messages = await memory.get_messages(user_id)
+    history_messages = await memory.get_messages(user_id, chat_id)
+    user_content = await build_user_message_content(
+        message.text,
+        user_id=user_id,
+        chat_id=chat_id,
+    )
+    messages = build_inference_messages(history_messages, user_content)
 
     response_text = await generate_response(messages)
-    await memory.add_message(user_id, "assistant", response_text)
+    await memory.add_message(user_id, chat_id, "user", message.text)
+    await memory.add_message(user_id, chat_id, "assistant", response_text)
 
     await message.answer(response_text)

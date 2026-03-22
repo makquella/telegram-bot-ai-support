@@ -1,4 +1,4 @@
-"""Voice message handler — STT → LLM → TTS pipeline."""
+"""Voice message handler — STT → RAG → LLM → TTS pipeline."""
 
 import uuid
 from pathlib import Path
@@ -8,9 +8,10 @@ from aiogram import Router, F, types
 from aiogram.types import FSInputFile
 
 from config import config
+from memory.conversation import memory
+from services.conversation import build_inference_messages, build_user_message_content
 from utils.audio import convert_ogg_to_wav, transcribe_audio, generate_speech
 from utils.llm import generate_response
-from memory.conversation import memory
 
 logger = structlog.get_logger(__name__)
 router = Router(name="voice")
@@ -26,18 +27,20 @@ async def _safe_delete(msg: types.Message) -> None:
 
 @router.message(F.voice)
 async def handle_voice(message: types.Message) -> None:
-    """Handle voice messages: transcribe → generate response → synthesize.
+    """Handle voice messages: transcribe → retrieve context → respond → synthesize.
 
     Pipeline:
     1. Download OGG voice from Telegram
     2. Convert OGG → WAV
     3. Transcribe WAV → text (faster-whisper)
-    4. Send transcription to user
+    4. Retrieve relevant document context (optional, configurable)
     5. Generate LLM response
-    6. Synthesize response → audio (edge-tts)
-    7. Send voice + text reply
+    6. Persist raw user/assistant messages in chat memory
+    7. Synthesize response → audio (edge-tts)
+    8. Send voice + text reply
     """
     user_id = message.from_user.id
+    chat_id = message.chat.id
     msg = await message.answer("🎙️ Обрабатываю голосовое...")
     await message.bot.send_chat_action(chat_id=message.chat.id, action="record_voice")
 
@@ -66,16 +69,31 @@ async def handle_voice(message: types.Message) -> None:
         await _safe_delete(msg)
         await message.answer(f"🗣 Вы сказали: {user_text}")
 
-        await memory.add_message(user_id, "user", user_text)
-        messages = await memory.get_messages(user_id)
+        history_messages = await memory.get_messages(user_id, chat_id)
+        user_content = await build_user_message_content(
+            user_text,
+            user_id=user_id,
+            chat_id=chat_id,
+            use_rag=config.voice_use_rag,
+        )
+        messages = build_inference_messages(history_messages, user_content)
 
         llm_response = await generate_response(messages)
-        await memory.add_message(user_id, "assistant", llm_response)
+        await memory.add_message(user_id, chat_id, "user", user_text)
+        await memory.add_message(user_id, chat_id, "assistant", llm_response)
 
-        # Generate and send voice response
+        # Try to send a voice reply when the chat allows it.
         if await generate_speech(llm_response, str(tts_path)):
-            voice_file = FSInputFile(str(tts_path))
-            await message.answer_voice(voice=voice_file)
+            try:
+                voice_file = FSInputFile(str(tts_path))
+                await message.answer_voice(voice=voice_file)
+            except Exception as e:
+                logger.warning(
+                    "Voice reply delivery failed",
+                    error=str(e),
+                    user_id=user_id,
+                    chat_id=chat_id,
+                )
 
         # Always send text version
         await message.answer(llm_response)

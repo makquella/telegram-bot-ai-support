@@ -7,9 +7,10 @@ import structlog
 from aiogram import Router, F, types
 
 from config import config
-from rag.loader import process_document, SUPPORTED_EXTENSIONS
-from rag.scoping import annotate_documents_for_user
+from rag.loader import process_document
+from rag.scoping import annotate_documents_for_scope
 from rag.vectorstore import vectorstore_manager
+from services.documents import validate_chunk_count, validate_document_upload
 
 logger = structlog.get_logger(__name__)
 router = Router(name="document")
@@ -24,12 +25,21 @@ async def handle_document(message: types.Message) -> None:
     """
     doc = message.document
     user_id = message.from_user.id
+    chat_id = message.chat.id
     filename = Path(doc.file_name or "uploaded_file.txt").name
-    ext = Path(filename).suffix.lower()
+    source_id = str(uuid.uuid4())
 
-    if ext not in SUPPORTED_EXTENSIONS:
-        supported = ", ".join(sorted(SUPPORTED_EXTENSIONS))
-        await message.answer(f"❌ Неподдерживаемый формат. Поддерживаются: {supported}")
+    validation_error = validate_document_upload(filename, doc.mime_type, doc.file_size)
+    if validation_error:
+        await message.answer(validation_error)
+        return
+
+    source_count = await vectorstore_manager.get_source_count(user_id, chat_id)
+    if source_count >= config.max_documents_per_chat:
+        await message.answer(
+            "❌ Достигнут лимит загруженных документов в этом чате. "
+            f"Лимит: {config.max_documents_per_chat}."
+        )
         return
 
     msg = await message.answer("📥 Получен файл. Скачиваю и индексирую...")
@@ -45,7 +55,20 @@ async def handle_document(message: types.Message) -> None:
             await msg.edit_text("❌ Не удалось обработать документ.")
             return
 
-        annotate_documents_for_user(docs, user_id=user_id, source_name=filename)
+        chunk_validation_error = validate_chunk_count(len(docs))
+        if chunk_validation_error:
+            await msg.edit_text(chunk_validation_error)
+            return
+
+        annotate_documents_for_scope(
+            docs,
+            user_id=user_id,
+            chat_id=chat_id,
+            source_id=source_id,
+            source_name=filename,
+            telegram_file_id=doc.file_id,
+            telegram_file_unique_id=doc.file_unique_id,
+        )
         count = await vectorstore_manager.add_documents(docs)
 
         await msg.edit_text(

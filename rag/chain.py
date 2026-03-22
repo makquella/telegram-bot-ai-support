@@ -7,17 +7,23 @@ from qdrant_client import QdrantClient
 
 from config import config
 from rag.embedder import get_embeddings
-from rag.scoping import build_user_filter
+from rag.scoping import build_scope_filter
 
 logger = structlog.get_logger(__name__)
 
 
-async def retrieve_context(query: str, user_id: int, top_k: int | None = None) -> str:
+async def retrieve_context(
+    query: str,
+    user_id: int,
+    chat_id: int,
+    top_k: int | None = None,
+) -> str:
     """Retrieve relevant document context for a user query.
 
     Args:
         query: The user's question or message.
         user_id: Telegram user ID used to isolate document search.
+        chat_id: Telegram chat ID used to isolate document search.
         top_k: Number of results to return (defaults to config.rag_top_k).
 
     Returns:
@@ -40,11 +46,22 @@ async def retrieve_context(query: str, user_id: int, top_k: int | None = None) -
             collection_name=config.rag_collection,
             embedding=get_embeddings(),
         )
-        docs = store.similarity_search(query, k=top_k, filter=build_user_filter(user_id))
+        docs = store.similarity_search(
+            query,
+            k=top_k,
+            filter=build_scope_filter(user_id, chat_id),
+        )
         return "\n\n".join(doc.page_content for doc in docs) if docs else ""
 
     try:
         return await loop.run_in_executor(None, _search)
     except Exception as e:
-        logger.error("Context retrieval failed", error=str(e))
+        logger.error(
+            "Context retrieval failed",
+            error=str(e),
+            user_id=user_id,
+            chat_id=chat_id,
+            query=query,
+            top_k=top_k,
+        )
         return ""

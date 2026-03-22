@@ -44,6 +44,10 @@ class Settings(BaseSettings):
     whisper_device: str = Field("cpu", description="Whisper device: cpu/cuda")
     whisper_compute: str = Field("int8", description="Whisper compute type: int8/float16/float32")
     tts_voice: str = Field("ru-RU-SvetlanaNeural", description="Edge-TTS voice identifier")
+    voice_use_rag: bool = Field(True, description="Use RAG retrieval for transcribed voice messages")
+    max_document_size_mb: int = Field(20, description="Maximum uploaded document size in megabytes")
+    max_chunks_per_document: int = Field(100, description="Maximum chunks created from one document")
+    max_documents_per_chat: int = Field(20, description="Maximum indexed documents per user per chat")
 
     # --- Infrastructure ---
     redis_url: str = Field("redis://localhost:6379/0", description="Redis connection URL")
@@ -57,6 +61,11 @@ class Settings(BaseSettings):
     webhook_url: Optional[str] = Field(None, description="Public webhook URL")
     webhook_path: str = Field("/webhook", description="Webhook endpoint path")
     port: int = Field(8000, description="Server port for webhook mode")
+
+    @property
+    def max_document_size_bytes(self) -> int:
+        """Return the maximum supported document size in bytes."""
+        return self.max_document_size_mb * 1024 * 1024
 
     @field_validator("webhook_path")
     @classmethod

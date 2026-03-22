@@ -1,9 +1,9 @@
-version: "3.8"
-
 services:
-  bot:
+  bot-polling:
     build: .
+    command: python main.py
     restart: always
+    profiles: ["polling"]
     env_file: .env
     depends_on:
       - redis
@@ -11,6 +11,25 @@ services:
     environment:
       - REDIS_URL=redis://redis:6379/0
       - QDRANT_URL=http://qdrant:6333
+      - USE_WEBHOOK=false
+    volumes:
+      - bot-data:/app/data
+
+  bot-webhook:
+    build: .
+    command: uvicorn app:app --host 0.0.0.0 --port 8000
+    restart: always
+    profiles: ["webhook"]
+    env_file: .env
+    depends_on:
+      - redis
+      - qdrant
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - QDRANT_URL=http://qdrant:6333
+      - USE_WEBHOOK=true
+    ports:
+      - "8000:8000"
     volumes:
       - bot-data:/app/data
 
