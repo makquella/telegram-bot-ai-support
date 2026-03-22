@@ -8,6 +8,8 @@
 
 A deployable **AI-powered Telegram assistant** with conversational memory, document Q&A (RAG), voice messages, and multi-model LLM support.
 
+Try the demo bot: [@test_helper_fh_bot](https://t.me/test_helper_fh_bot)
+
 ---
 
 ## ✨ Features
