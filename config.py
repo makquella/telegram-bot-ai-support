@@ -1,8 +1,10 @@
 """Application configuration via environment variables and .env file."""
 
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import SecretStr, Field
+from pathlib import Path
 from typing import Optional
+
+from pydantic import Field, SecretStr, field_validator, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -48,6 +50,7 @@ class Settings(BaseSettings):
     qdrant_url: str = Field("http://localhost:6333", description="Qdrant connection URL")
     memory_ttl: int = Field(86400, description="Conversation memory TTL in seconds (24h)")
     max_history: int = Field(15, description="Max conversation exchanges to keep")
+    data_dir: Path = Field(Path("data"), description="Directory for temporary files")
 
     # --- Webhook ---
     use_webhook: bool = Field(False, description="Use webhook mode instead of polling")
@@ -55,7 +58,44 @@ class Settings(BaseSettings):
     webhook_path: str = Field("/webhook", description="Webhook endpoint path")
     port: int = Field(8000, description="Server port for webhook mode")
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    @field_validator("webhook_path")
+    @classmethod
+    def normalize_webhook_path(cls, value: str) -> str:
+        """Ensure webhook paths are consistently absolute."""
+        if not value:
+            return "/webhook"
+        return value if value.startswith("/") else f"/{value}"
+
+    @field_validator("data_dir", mode="before")
+    @classmethod
+    def normalize_data_dir(cls, value: str | Path) -> Path:
+        """Expand user home in data directory paths."""
+        path = Path(value).expanduser()
+        if not path.is_absolute():
+            path = Path(__file__).resolve().parent / path
+        return path
+
+    @model_validator(mode="after")
+    def validate_runtime_requirements(self) -> "Settings":
+        """Fail fast on invalid provider and webhook combinations."""
+        model_name = self.llm_model.lower()
+
+        if model_name.startswith("gemini/") and not self.gemini_api_key:
+            raise ValueError("GEMINI_API_KEY is required for Gemini models.")
+        if model_name.startswith("openai/") and not self.openai_api_key:
+            raise ValueError("OPENAI_API_KEY is required for OpenAI models.")
+        if model_name.startswith("groq/") and not self.groq_api_key:
+            raise ValueError("GROQ_API_KEY is required for Groq models.")
+        if "gemini" in self.embedding_model.lower() and not self.gemini_api_key:
+            raise ValueError("GEMINI_API_KEY is required for Gemini embeddings.")
+        if self.use_webhook and not self.webhook_url:
+            raise ValueError("WEBHOOK_URL is required when USE_WEBHOOK=true.")
+        return self
+
+    model_config = SettingsConfigDict(
+        env_file=Path(__file__).resolve().parent / ".env",
+        env_file_encoding="utf-8",
+    )
 
 
 config = Settings()

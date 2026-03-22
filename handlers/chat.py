@@ -27,7 +27,7 @@ async def handle_text_message(message: types.Message) -> None:
     # Retrieve RAG context (silent on failure)
     context = ""
     try:
-        context = await retrieve_context(message.text)
+        context = await retrieve_context(message.text, user_id=user_id)
     except Exception:
         pass
 

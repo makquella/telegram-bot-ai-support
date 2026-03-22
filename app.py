@@ -2,31 +2,20 @@
 
 import structlog
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
-from aiogram import Bot, Dispatcher
+from fastapi import FastAPI, Request, Response
 from aiogram.types import Update
 
+from bootstrap import bot, configure_logging, dp, initialize_bot, shutdown_bot
 from config import config
-from handlers.commands import router as commands_router
-from handlers.document import router as document_router
-from handlers.voice import router as voice_router
-from handlers.chat import router as chat_router
+from services.health import collect_health
 
 logger = structlog.get_logger(__name__)
-
-bot = Bot(token=config.bot_token.get_secret_value())
-dp = Dispatcher()
-
-# Order matters: specific handlers first, catch-all chat last
-dp.include_router(commands_router)
-dp.include_router(document_router)
-dp.include_router(voice_router)
-dp.include_router(chat_router)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Set up and tear down webhook on startup/shutdown."""
+    await initialize_bot(bot)
     if config.use_webhook and config.webhook_url:
         webhook_info = await bot.get_webhook_info()
         full_url = config.webhook_url + config.webhook_path
@@ -37,7 +26,7 @@ async def lifespan(app: FastAPI):
     if config.use_webhook:
         logger.info("Deleting webhook")
         await bot.delete_webhook()
-    await bot.session.close()
+    await shutdown_bot(bot)
 
 
 app = FastAPI(lifespan=lifespan, title="SmartFlow AI Bot")
@@ -57,18 +46,21 @@ async def bot_webhook(request: Request):
 
 
 @app.get("/")
-def health_check():
-    """Health check endpoint."""
-    return {"status": "ok", "service": "SmartFlow AI Bot"}
+@app.get("/health")
+async def health_check(response: Response):
+    """Health check endpoint with dependency readiness."""
+    health = await collect_health()
+    response.status_code = 200 if health.ok else 503
+    return {
+        "status": "ok" if health.ok else "degraded",
+        "service": "SmartFlow AI Bot",
+        "mode": "webhook" if config.use_webhook else "polling",
+        "checks": health.to_dict(),
+    }
 
 
 if __name__ == "__main__":
     import uvicorn
 
-    structlog.configure(
-        processors=[
-            structlog.processors.TimeStamper(fmt="iso"),
-            structlog.processors.JSONRenderer(),
-        ]
-    )
+    configure_logging()
     uvicorn.run("app:app", host="0.0.0.0", port=config.port)

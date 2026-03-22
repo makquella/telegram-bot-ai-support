@@ -1,11 +1,13 @@
 """Voice message handler — STT → LLM → TTS pipeline."""
 
-import os
 import uuid
+from pathlib import Path
+
 import structlog
 from aiogram import Router, F, types
 from aiogram.types import FSInputFile
 
+from config import config
 from utils.audio import convert_ogg_to_wav, transcribe_audio, generate_speech
 from utils.llm import generate_response
 from memory.conversation import memory
@@ -39,23 +41,22 @@ async def handle_voice(message: types.Message) -> None:
     msg = await message.answer("🎙️ Обрабатываю голосовое...")
     await message.bot.send_chat_action(chat_id=message.chat.id, action="record_voice")
 
-    data_dir = os.path.join(os.getcwd(), "data")
-    os.makedirs(data_dir, exist_ok=True)
+    config.data_dir.mkdir(parents=True, exist_ok=True)
 
     base_id = str(uuid.uuid4())
-    ogg_path = os.path.join(data_dir, f"{base_id}.ogg")
-    wav_path = os.path.join(data_dir, f"{base_id}.wav")
-    tts_path = os.path.join(data_dir, f"{base_id}_response.mp3")
+    ogg_path = config.data_dir / f"{base_id}.ogg"
+    wav_path = config.data_dir / f"{base_id}.wav"
+    tts_path = config.data_dir / f"{base_id}_response.mp3"
 
     try:
-        await message.bot.download(message.voice, destination=ogg_path)
+        await message.bot.download(message.voice, destination=str(ogg_path))
 
-        if not await convert_ogg_to_wav(ogg_path, wav_path):
+        if not await convert_ogg_to_wav(str(ogg_path), str(wav_path)):
             await _safe_delete(msg)
             await message.answer("❌ Не удалось обработать аудио. Убедитесь что ffmpeg установлен.")
             return
 
-        user_text = await transcribe_audio(wav_path)
+        user_text = await transcribe_audio(str(wav_path))
         if not user_text:
             await _safe_delete(msg)
             await message.answer("❌ Не удалось распознать речь.")
@@ -72,8 +73,8 @@ async def handle_voice(message: types.Message) -> None:
         await memory.add_message(user_id, "assistant", llm_response)
 
         # Generate and send voice response
-        if await generate_speech(llm_response, tts_path):
-            voice_file = FSInputFile(tts_path)
+        if await generate_speech(llm_response, str(tts_path)):
+            voice_file = FSInputFile(str(tts_path))
             await message.answer_voice(voice=voice_file)
 
         # Always send text version
@@ -85,5 +86,5 @@ async def handle_voice(message: types.Message) -> None:
         await message.answer("❌ Ошибка при обработке голосового сообщения.")
     finally:
         for path in [ogg_path, wav_path, tts_path]:
-            if os.path.exists(path):
-                os.remove(path)
+            if path.exists():
+                path.unlink()

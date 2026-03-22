@@ -6,7 +6,7 @@
 ![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
-A production-ready **AI-powered Telegram assistant** with conversational memory, document Q&A (RAG), voice messages, and multi-model LLM support.
+A deployable **AI-powered Telegram assistant** with conversational memory, document Q&A (RAG), voice messages, and multi-model LLM support.
 
 ---
 
@@ -16,8 +16,11 @@ A production-ready **AI-powered Telegram assistant** with conversational memory,
 |---------|-------------|
 | 💬 **Smart Chat** | Context-aware conversations powered by Gemini / OpenAI / Groq via LiteLLM |
 | 📄 **Document Q&A** | Upload PDF / DOCX / TXT → auto-indexed in Qdrant → ask questions about content |
+| 🔐 **User-Isolated RAG** | Document search is scoped per Telegram user, so uploaded files stay separated by chat |
 | 🎙 **Voice Mode** | Send a voice message → STT (Whisper) → LLM → TTS (Edge-TTS) → voice reply |
 | 🧠 **Memory** | Redis-backed conversation history with configurable TTL and max exchanges |
+| 🩺 **Health Checks** | Startup dependency checks plus `/health` endpoint for webhook deployments |
+| ✅ **CI** | GitHub Actions runs unit tests on every push and pull request |
 | ⚡ **Dual Mode** | Long-polling for development, FastAPI webhooks for production |
 | 🐳 **Docker** | One-command deployment with `docker compose up` |
 
@@ -52,11 +55,12 @@ graph LR
 
 ```
 smartflow-ai-bot/
+├── bootstrap.py         # Shared startup, logging, and bot command setup
 ├── main.py              # Polling entrypoint
 ├── app.py               # Webhook entrypoint (FastAPI)
 ├── config.py            # Pydantic-settings configuration
 ├── handlers/
-│   ├── commands.py      # /start, /help, /clear, /status
+│   ├── commands.py      # /start, /help, /clear, /clear_docs, /status
 │   ├── chat.py          # Text message handler with RAG
 │   ├── voice.py         # Voice message pipeline (STT → LLM → TTS)
 │   └── document.py      # File upload and indexing
@@ -67,9 +71,15 @@ smartflow-ai-bot/
 │   ├── embedder.py      # Gemini embedding model
 │   ├── loader.py        # Document loading & chunking
 │   ├── chain.py         # Context retrieval
+│   ├── scoping.py       # User-level metadata & Qdrant filters
 │   └── vectorstore.py   # Qdrant vector store
 ├── memory/
 │   └── conversation.py  # Redis conversation memory
+├── services/
+│   └── health.py        # Redis/Qdrant dependency checks
+├── tests/
+│   ├── test_config.py   # Unit tests for config validation
+│   └── test_scoping.py  # Unit tests for user-scoped RAG helpers
 ├── Dockerfile
 ├── docker-compose.yml
 ├── requirements.txt
@@ -135,6 +145,18 @@ This starts the bot, Redis, and Qdrant with persistent storage.
 
 ---
 
+## ✅ Testing
+
+Run unit tests locally:
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+GitHub Actions runs the same test suite automatically on every push and pull request.
+
+---
+
 ## ⚙️ Configuration
 
 All settings via environment variables or `.env` file:
@@ -149,8 +171,11 @@ All settings via environment variables or `.env` file:
 | `TTS_VOICE` | `ru-RU-SvetlanaNeural` | Edge-TTS voice |
 | `MAX_HISTORY` | `15` | Conversation exchanges to remember |
 | `MEMORY_TTL` | `86400` | Memory auto-expiry (seconds) |
+| `DATA_DIR` | `data` | Directory for temp audio/doc processing |
 
 See [.env.example](.env.example) for the full list.
+
+Portfolio-ready project summary for Freelancehunt is available in [FREELANCEHUNT_CASE.md](FREELANCEHUNT_CASE.md).
 
 ---
 

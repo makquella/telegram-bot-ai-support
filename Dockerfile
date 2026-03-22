@@ -9,8 +9,7 @@ WORKDIR /app
 
 # Install Python dependencies first (cache layer)
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt \
-    pypdf docx2txt langchain-google-genai langchain-qdrant
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . .

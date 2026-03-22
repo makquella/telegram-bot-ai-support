@@ -1,11 +1,14 @@
 """Document upload handler — indexes files into the RAG vector store."""
 
-import os
 import uuid
+from pathlib import Path
+
 import structlog
 from aiogram import Router, F, types
 
+from config import config
 from rag.loader import process_document, SUPPORTED_EXTENSIONS
+from rag.scoping import annotate_documents_for_user
 from rag.vectorstore import vectorstore_manager
 
 logger = structlog.get_logger(__name__)
@@ -20,8 +23,9 @@ async def handle_document(message: types.Message) -> None:
     can ask questions about the document content via regular chat.
     """
     doc = message.document
-    filename = doc.file_name or "uploaded_file.txt"
-    ext = os.path.splitext(filename)[1].lower()
+    user_id = message.from_user.id
+    filename = Path(doc.file_name or "uploaded_file.txt").name
+    ext = Path(filename).suffix.lower()
 
     if ext not in SUPPORTED_EXTENSIONS:
         supported = ", ".join(sorted(SUPPORTED_EXTENSIONS))
@@ -30,18 +34,18 @@ async def handle_document(message: types.Message) -> None:
 
     msg = await message.answer("📥 Получен файл. Скачиваю и индексирую...")
 
-    data_dir = os.path.join(os.getcwd(), "data")
-    os.makedirs(data_dir, exist_ok=True)
-    temp_path = os.path.join(data_dir, f"{uuid.uuid4()}_{filename}")
+    config.data_dir.mkdir(parents=True, exist_ok=True)
+    temp_path = config.data_dir / f"{uuid.uuid4()}_{filename}"
 
     try:
-        await message.bot.download(doc, destination=temp_path)
+        await message.bot.download(doc, destination=str(temp_path))
 
-        docs = await process_document(temp_path, filename)
+        docs = await process_document(str(temp_path), filename)
         if not docs:
             await msg.edit_text("❌ Не удалось обработать документ.")
             return
 
+        annotate_documents_for_user(docs, user_id=user_id, source_name=filename)
         count = await vectorstore_manager.add_documents(docs)
 
         await msg.edit_text(
@@ -56,5 +60,5 @@ async def handle_document(message: types.Message) -> None:
         except Exception:
             await message.answer("❌ Ошибка при индексации файла.")
     finally:
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
+        if temp_path.exists():
+            temp_path.unlink()
