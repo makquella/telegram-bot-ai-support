@@ -3,7 +3,8 @@
 
 # Core
 aiogram>=3.4.1
-litellm>=1.35.0
+# LiteLLM is pinned from upstream GitHub because the PyPI project is currently quarantined.
+litellm @ git+https://github.com/BerriAI/litellm.git@cbaea88cc0056e100aee9ff684888980fdea5acb
 pydantic-settings>=2.2.1
 structlog>=24.1.0
 python-multipart>=0.0.9

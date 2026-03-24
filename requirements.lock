@@ -64,7 +64,8 @@ langgraph-checkpoint==4.0.1
 langgraph-prebuilt==1.0.8
 langgraph-sdk==0.3.12
 langsmith==0.7.22
-litellm==1.82.4
+# LiteLLM is pinned from upstream GitHub because the PyPI project is quarantined.
+litellm @ git+https://github.com/BerriAI/litellm.git@cbaea88cc0056e100aee9ff684888980fdea5acb
 magic-filter==1.0.12
 markdown-it-py==4.0.0
 MarkupSafe==3.0.3

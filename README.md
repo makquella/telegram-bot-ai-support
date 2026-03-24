@@ -148,6 +148,8 @@ pip install -r requirements.lock
 
 `requirements.lock` is the reproducible, fully pinned install set used by Docker and CI. `requirements.txt` remains in the repo as the editable top-level dependency spec for refreshing the lock file.
 
+`LiteLLM` is installed from a pinned upstream GitHub commit instead of PyPI because the PyPI project is currently quarantined. This keeps setup reproducible without relying on an unavailable package release.
+
 Optional developer tooling:
 
 ```bash
@@ -219,6 +221,7 @@ The project is currently locked and tested against Python `3.12.3`.
 
 - `.python-version` pins the recommended interpreter version for local development.
 - `requirements.lock` pins the exact Python package set used by the project.
+- `LiteLLM` is pinned to a specific upstream GitHub commit because the PyPI package is currently quarantined.
 - Docker installs from `requirements.lock`.
 - CI installs from `requirements.lock`.
 
