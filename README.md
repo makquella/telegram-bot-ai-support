@@ -29,24 +29,24 @@ Project docs: [Case Study](CASE_STUDY.md) · [Privacy](PRIVACY.md)
 
 ## 📸 Bot In Action
 
-<table>
+<table width="100%">
   <tr>
-    <td align="center" width="50%">
-      <img src="assets/screenshots/start-screen.png" alt="SmartFlow AI welcome screen in Telegram" width="260"><br>
+    <td align="center" valign="top" width="50%">
+      <img src="assets/screenshots/start-screen.png" alt="SmartFlow AI welcome screen in Telegram" width="300"><br>
       <sub><b>Welcome screen and command overview</b></sub>
     </td>
-    <td align="center" width="50%">
-      <img src="assets/screenshots/commands-menu.png" alt="SmartFlow AI command menu in Telegram" width="260"><br>
+    <td align="center" valign="top" width="50%">
+      <img src="assets/screenshots/commands-menu.png" alt="SmartFlow AI command menu in Telegram" width="300"><br>
       <sub><b>Built-in Telegram command menu</b></sub>
     </td>
   </tr>
   <tr>
-    <td align="center" width="50%">
-      <img src="assets/screenshots/document-indexed.png" alt="Document upload indexed by SmartFlow AI" width="260"><br>
+    <td align="center" valign="top" width="50%">
+      <img src="assets/screenshots/document-indexed.png" alt="Document upload indexed by SmartFlow AI" width="300"><br>
       <sub><b>Document upload and indexing</b></sub>
     </td>
-    <td align="center" width="50%">
-      <img src="assets/screenshots/voice-rag-answer.png" alt="Voice question answered by SmartFlow AI" width="260"><br>
+    <td align="center" valign="top" width="50%">
+      <img src="assets/screenshots/voice-rag-answer.png" alt="Voice question answered by SmartFlow AI" width="300"><br>
       <sub><b>Voice question answered from indexed content</b></sub>
     </td>
   </tr>

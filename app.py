@@ -5,6 +5,8 @@ from contextlib import asynccontextmanager
 import structlog
 from aiogram.types import Update
 from fastapi import FastAPI, Request, Response
+from fastapi.responses import JSONResponse
+from pydantic import ValidationError
 
 from bootstrap import bot, configure_logging, dp, initialize_bot, shutdown_bot
 from config import config
@@ -42,9 +44,18 @@ async def bot_webhook(request: Request):
         update = Update(**data)
         await dp.feed_update(bot=bot, update=update)
         return {"ok": True}
+    except (ValidationError, ValueError) as e:
+        logger.warning("Webhook payload validation failed", error=str(e))
+        return JSONResponse(
+            status_code=400,
+            content={"ok": False, "error": "invalid_webhook_payload"},
+        )
     except Exception as e:
         logger.error("Webhook processing error", error=str(e))
-        return {"ok": False}
+        return JSONResponse(
+            status_code=500,
+            content={"ok": False, "error": "webhook_processing_failed"},
+        )
 
 
 @app.get("/")
