@@ -7,7 +7,9 @@
 ![License](https://img.shields.io/badge/License-MIT-green)
 [![CI](https://github.com/makquella/telegram-bot-ai-support/actions/workflows/ci.yml/badge.svg)](https://github.com/makquella/telegram-bot-ai-support/actions/workflows/ci.yml)
 
-A deployable **AI-powered Telegram assistant** with conversational memory, document Q&A (RAG), voice messages, and multi-model LLM support.
+A deployable **AI-powered Telegram assistant** for chat, document Q&A, and voice workflows.
+
+It combines LiteLLM, Redis memory, and Qdrant-backed RAG in one Telegram interface, with both local polling and production-style webhook modes.
 
 Try the demo bot: [@test_helper_fh_bot](https://t.me/test_helper_fh_bot)
 
@@ -17,18 +19,38 @@ Project docs: [Case Study](CASE_STUDY.md) · [Privacy](PRIVACY.md)
 
 ## ✨ Features
 
-| Feature | Description |
-|---------|-------------|
-| 💬 **Smart Chat** | Context-aware conversations powered by Gemini / OpenAI / Groq via LiteLLM |
-| 📄 **Document Q&A** | Upload PDF / DOCX / TXT → auto-indexed in Qdrant → ask questions about content |
-| 🔐 **Scoped RAG Isolation** | Retrieval is scoped by `user_id + chat_id`, with `source_id` metadata stored per uploaded document |
-| 🎙 **Voice Mode** | Send a voice message → STT → optional RAG over indexed docs → LLM → TTS (Edge-TTS) |
-| 🧠 **Memory** | Redis-backed conversation history with configurable TTL and max exchanges |
-| 🧱 **Document Limits** | File size, MIME type, chunk count, and per-chat document caps protect the bot from abuse |
-| 🩺 **Health Checks** | Startup dependency checks plus `/health` endpoint for webhook deployments |
-| ✅ **CI** | GitHub Actions runs unit tests on every push and pull request |
-| ⚡ **Dual Mode** | Long-polling for development, FastAPI webhooks for production |
-| 🐳 **Docker** | One-command deployment with `docker compose up` |
+- **Chat + memory**: context-aware conversations with Redis-backed short-term history.
+- **Document Q&A**: upload `PDF`, `DOCX`, or `TXT`, index in Qdrant, and ask questions over the content.
+- **Voice workflow**: send a voice note, transcribe it with Whisper, optionally use RAG, and return text plus optional TTS.
+- **Scoped retrieval**: document search is isolated by `user_id + chat_id`.
+- **Operational basics**: Docker, health checks, CI, pinned dependencies, and both polling and webhook modes.
+
+---
+
+## 📸 Bot In Action
+
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="assets/screenshots/start-screen.png" alt="SmartFlow AI welcome screen in Telegram" width="260"><br>
+      <sub><b>Welcome screen and command overview</b></sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="assets/screenshots/commands-menu.png" alt="SmartFlow AI command menu in Telegram" width="260"><br>
+      <sub><b>Built-in Telegram command menu</b></sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <img src="assets/screenshots/document-indexed.png" alt="Document upload indexed by SmartFlow AI" width="260"><br>
+      <sub><b>Document upload and indexing</b></sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="assets/screenshots/voice-rag-answer.png" alt="Voice question answered by SmartFlow AI" width="260"><br>
+      <sub><b>Voice question answered from indexed content</b></sub>
+    </td>
+  </tr>
+</table>
 
 ---
 
