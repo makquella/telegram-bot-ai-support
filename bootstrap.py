@@ -1,8 +1,8 @@
 """Shared bootstrap helpers for bot startup, logging, and command registration."""
 
+import structlog
 from aiogram import Bot, Dispatcher
 from aiogram.types import BotCommand
-import structlog
 
 from config import config
 from handlers.chat import router as chat_router

@@ -1,8 +1,9 @@
 """Redis-backed conversation memory with TTL auto-cleanup."""
 
 import json
-import structlog
+
 import redis.asyncio as aioredis
+import structlog
 
 from config import config
 

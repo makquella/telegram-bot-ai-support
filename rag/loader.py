@@ -1,9 +1,10 @@
 """Document loader and text splitter for RAG pipeline."""
 
-import os
 import asyncio
+import os
+
 import structlog
-from langchain_community.document_loaders import PyPDFLoader, TextLoader, Docx2txtLoader
+from langchain_community.document_loaders import Docx2txtLoader, PyPDFLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from config import config

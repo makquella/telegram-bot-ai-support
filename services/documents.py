@@ -28,10 +28,7 @@ def validate_document_upload(
         return f"❌ Неподдерживаемый MIME-тип. Допустимы: {supported}"
 
     if file_size and file_size > config.max_document_size_bytes:
-        return (
-            "❌ Файл слишком большой. "
-            f"Лимит: {config.max_document_size_mb} MB."
-        )
+        return f"❌ Файл слишком большой. Лимит: {config.max_document_size_mb} MB."
 
     return None
 

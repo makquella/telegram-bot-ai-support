@@ -137,7 +137,12 @@ class QdrantStore:
         try:
             return await loop.run_in_executor(None, _count_sources)
         except Exception as e:
-            logger.error("VectorStore source count failed", error=str(e), user_id=user_id, chat_id=chat_id)
+            logger.error(
+                "VectorStore source count failed",
+                error=str(e),
+                user_id=user_id,
+                chat_id=chat_id,
+            )
             return 0
 
     async def clear_documents(

@@ -32,7 +32,10 @@ class Settings(BaseSettings):
     )
 
     # --- Embeddings & RAG ---
-    embedding_model: str = Field("models/gemini-embedding-2-preview", description="Embedding model name")
+    embedding_model: str = Field(
+        "models/gemini-embedding-2-preview",
+        description="Embedding model name",
+    )
     rag_collection: str = Field("smartflow_docs", description="Qdrant collection name")
     rag_vector_size: int = Field(3072, description="Embedding vector dimension")
     rag_chunk_size: int = Field(1000, description="Text splitter chunk size")
@@ -40,14 +43,32 @@ class Settings(BaseSettings):
     rag_top_k: int = Field(3, description="Number of documents to retrieve")
 
     # --- Voice ---
-    whisper_model: str = Field("medium", description="Whisper model size: tiny/small/medium/large")
+    whisper_model: str = Field(
+        "medium",
+        description="Whisper model size: tiny/small/medium/large",
+    )
     whisper_device: str = Field("cpu", description="Whisper device: cpu/cuda")
-    whisper_compute: str = Field("int8", description="Whisper compute type: int8/float16/float32")
+    whisper_compute: str = Field(
+        "int8",
+        description="Whisper compute type: int8/float16/float32",
+    )
     tts_voice: str = Field("ru-RU-SvetlanaNeural", description="Edge-TTS voice identifier")
-    voice_use_rag: bool = Field(True, description="Use RAG retrieval for transcribed voice messages")
-    max_document_size_mb: int = Field(20, description="Maximum uploaded document size in megabytes")
-    max_chunks_per_document: int = Field(100, description="Maximum chunks created from one document")
-    max_documents_per_chat: int = Field(20, description="Maximum indexed documents per user per chat")
+    voice_use_rag: bool = Field(
+        True,
+        description="Use RAG retrieval for transcribed voice messages",
+    )
+    max_document_size_mb: int = Field(
+        20,
+        description="Maximum uploaded document size in megabytes",
+    )
+    max_chunks_per_document: int = Field(
+        100,
+        description="Maximum chunks created from one document",
+    )
+    max_documents_per_chat: int = Field(
+        20,
+        description="Maximum indexed documents per user per chat",
+    )
 
     # --- Infrastructure ---
     redis_url: str = Field("redis://localhost:6379/0", description="Redis connection URL")

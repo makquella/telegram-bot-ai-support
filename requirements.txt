@@ -1,3 +1,6 @@
+# Editable top-level dependency spec.
+# For reproducible installs, use requirements.lock.
+
 # Core
 aiogram>=3.4.1
 litellm>=1.35.0

@@ -1,6 +1,7 @@
 """Polling entrypoint — run with `python main.py`."""
 
 import asyncio
+
 import structlog
 
 from bootstrap import bot, configure_logging, dp, initialize_bot, shutdown_bot

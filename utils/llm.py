@@ -1,6 +1,7 @@
 """LLM integration via LiteLLM — supports Gemini, OpenAI, Groq."""
 
 import os
+
 import structlog
 from litellm import acompletion
 

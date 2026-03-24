@@ -37,10 +37,7 @@ async def build_user_message_content(
     if not context:
         return user_text
 
-    return (
-        f"Контекст из документов:\n{context}\n\n"
-        f"Вопрос пользователя: {user_text}"
-    )
+    return f"Контекст из документов:\n{context}\n\nВопрос пользователя: {user_text}"
 
 
 def build_inference_messages(

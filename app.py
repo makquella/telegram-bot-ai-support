@@ -1,9 +1,10 @@
 """Webhook entrypoint — run with `uvicorn app:app --host 0.0.0.0 --port 8000`."""
 
-import structlog
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, Response
+
+import structlog
 from aiogram.types import Update
+from fastapi import FastAPI, Request, Response
 
 from bootstrap import bot, configure_logging, dp, initialize_bot, shutdown_bot
 from config import config

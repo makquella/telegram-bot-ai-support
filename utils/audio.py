@@ -1,7 +1,7 @@
 """Audio processing: STT (faster-whisper) and TTS (edge-tts)."""
 
-import os
 import asyncio
+
 import structlog
 from pydub import AudioSegment
 

@@ -4,7 +4,7 @@ import uuid
 from pathlib import Path
 
 import structlog
-from aiogram import Router, F, types
+from aiogram import F, Router, types
 
 from config import config
 from rag.loader import process_document

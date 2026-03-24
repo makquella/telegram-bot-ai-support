@@ -1,16 +1,15 @@
 """Voice message handler — STT → RAG → LLM → TTS pipeline."""
 
 import uuid
-from pathlib import Path
 
 import structlog
-from aiogram import Router, F, types
+from aiogram import F, Router, types
 from aiogram.types import FSInputFile
 
 from config import config
 from memory.conversation import memory
 from services.conversation import build_inference_messages, build_user_message_content
-from utils.audio import convert_ogg_to_wav, transcribe_audio, generate_speech
+from utils.audio import convert_ogg_to_wav, generate_speech, transcribe_audio
 from utils.llm import generate_response
 
 logger = structlog.get_logger(__name__)

@@ -60,7 +60,10 @@ class ConversationHelpersTestCase(IsolatedAsyncioTestCase):
             {"role": "assistant", "content": "Здравствуйте"},
         ]
 
-        messages = build_inference_messages(history, "Контекст из документов:\n...\n\nВопрос пользователя: Что по срокам?")
+        messages = build_inference_messages(
+            history,
+            "Контекст из документов:\n...\n\nВопрос пользователя: Что по срокам?",
+        )
 
         self.assertEqual(len(messages), 3)
         self.assertEqual(history[-1]["content"], "Здравствуйте")

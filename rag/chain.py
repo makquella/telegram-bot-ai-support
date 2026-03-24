@@ -1,6 +1,7 @@
 """RAG retrieval chain — searches indexed documents for relevant context."""
 
 import asyncio
+
 import structlog
 from langchain_qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient
